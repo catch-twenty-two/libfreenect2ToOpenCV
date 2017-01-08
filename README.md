@@ -5,3 +5,7 @@ This project allows a Microsoft Xbox Kinect2 to stream content to the OpenCV lib
 The example contains a Canny filter, but can be replaced with anything else.  Calls are availlible to grab all output types of the Xbox Kinect2 including IR and Depth Images.
 
 Created and compiled in Eclipse Mars CDT environment on Ubuntu 14.04 LTS.
+
+Uses parts from this open CV forum answer:
+
+http://answers.opencv.org/question/76468/opencvkinect-onekinect-for-windows-v2linuxlibfreenect2/
