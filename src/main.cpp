@@ -9,16 +9,29 @@ int main()
     libfreenect2opencv::Libfreenect2OpenCV libfreenect2OpenCV;
     int key = 0;
 
+    // starts the class thread gathering pipline info from
+    // the kinect2
+
     libfreenect2OpenCV.start();
 
     while (key <= 0) {
-        cv::Mat img = libfreenect2OpenCV.getRgbMat();
-        cv::Mat edges;
 
-        cv::cvtColor(img, img, CV_BGR2GRAY);
-        cv::Canny(img, edges, 120, 175);
-        cv::imshow("edges 1.5", edges);
-        cv::imshow("RgpMat", img);
+        // grab the current RGB matrix
+        cv::Mat img = libfreenect2OpenCV.getRGBMat();
+        cv::Mat edges = img;
+
+        // opencv to gray scale
+        cv::cvtColor(edges, edges, CV_BGR2GRAY);
+        cv::Canny(edges, edges, 120, 175);
+
+        // Show canny edges
+        cv::imshow("Canny Edges", edges);
+
+        // Show original RGB Image
+        cv::imshow("RGB Matrix", img);
+
+        // Show depth matrix
+        cv::imshow("Depth Matrix", libfreenect2OpenCV.getDepthMat());
 
         key = cv::waitKey(1);
     }

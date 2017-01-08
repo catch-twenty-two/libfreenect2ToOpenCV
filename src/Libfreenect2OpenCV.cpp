@@ -1,11 +1,5 @@
 #include <iostream>
-#include <stdio.h>
-#include <iomanip>
-#include <time.h>
-#include <signal.h>
 #include <stdexcept>
-#include <mutex>
-#include <thread>
 
 #include <opencv2/opencv.hpp>
 
@@ -27,11 +21,12 @@ namespace libfreenect2opencv {
 
 bool Libfreenect2OpenCV::s_shutdown = false;
 
-Libfreenect2OpenCV::Libfreenect2OpenCV() :
+Libfreenect2OpenCV::Libfreenect2OpenCV(Processor depthProcessor) :
         m_pipeline(nullptr),
         m_dev(nullptr),
         m_registration(nullptr),
-        m_listener(nullptr)
+        m_listener(nullptr),
+        m_updateThread(nullptr)
 {
     if (freenect2.enumerateDevices() == 0) {
         throw runtime_error("no device connected");
@@ -40,8 +35,6 @@ Libfreenect2OpenCV::Libfreenect2OpenCV() :
     string serial = freenect2.getDefaultDeviceSerialNumber();
 
     std::cout << "SERIAL: " << serial << std::endl;
-
-    int depthProcessor = Processor::cl;
 
     if (depthProcessor == Processor::cpu) {
         if (!m_pipeline) {
@@ -103,50 +96,65 @@ void Libfreenect2OpenCV::updateMat()
     // check here (https://github.com/OpenKinect/libfreenect2/issues/337) and
     // here (https://github.com/OpenKinect/libfreenect2/issues/464) why depth2rgb image should be bigger
     libfreenect2::Frame undistorted(512, 424, 4), registered(512, 424, 4), depth2rgb(1920,
-                                                                                     1080 + 2,
-                                                                                     4);
+                                                                                     1080 + 2,                                                                                 4);
+    bool notifyInit = true;
+
     while (!s_shutdown)
     {
-        std::unique_lock<std::mutex> lock(updateMutex);
 
         m_listener->waitForNewFrame(frames);
+
+        std::unique_lock<std::mutex> lock(m_updateMutex);
 
         libfreenect2::Frame *rgb = frames[libfreenect2::Frame::Color];
         libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
         libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
 
         cv::Mat(rgb->height, rgb->width, CV_8UC4, rgb->data).copyTo(m_rgbMat);
-        cv::Mat(ir->height, ir->width, CV_32FC1, ir->data).copyTo(m_irMat);
+        cv::Mat(ir->height, ir->width, CV_32FC1, ir->data).copyTo(m_IRMat);
         cv::Mat(depth->height, depth->width, CV_32FC1, depth->data).copyTo(m_depthMat);
+
         cv::resize(m_rgbMat, m_rgbMat, cv::Size(m_rgbMat.cols / 4, m_rgbMat.rows / 4));
+
         m_registration->apply(rgb, depth, &undistorted, &registered, true, &depth2rgb);
+
         cv::Mat(undistorted.height, undistorted.width, CV_32FC1, undistorted.data).copyTo(m_depthMatUndistorted);
         cv::Mat(registered.height, registered.width, CV_8UC4, registered.data).copyTo(m_rgbdMat);
         cv::Mat(depth2rgb.height, depth2rgb.width, CV_32FC1, depth2rgb.data).copyTo(m_rgbd2Mat);
         cv::resize(m_rgbd2Mat, m_rgbd2Mat, cv::Size(m_rgbd2Mat.cols / 4, m_rgbd2Mat.rows / 4));
 
         m_listener->release(frames);
-        initSig.notify_all();
+
+        if(notifyInit) {
+            notifyInit = false;
+            initSig.notify_all();
+        }
+
+        lock.unlock();
     }
 }
 
 void Libfreenect2OpenCV::stop()
 {
     s_shutdown = true;
+
+    m_updateThread->join();
 }
 
 void Libfreenect2OpenCV::start()
 {
-    std::thread { trampoline, this }.detach();
+    m_updateThread = new std::thread( trampoline, this );
 
-    std::unique_lock<std::mutex> lock(initMutex);
+    std::unique_lock<std::mutex> lock(m_updateMutex);
     initSig.wait(lock);
 }
 
 Libfreenect2OpenCV::~Libfreenect2OpenCV()
 {
     m_dev->stop();
+
     delete m_registration;
+    delete m_updateThread;
 }
 
-} /* namespace Communicator */
+}

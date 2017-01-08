@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 #include <libfreenect2/libfreenect2.hpp>
 #include <libfreenect2/frame_listener_impl.h>
@@ -24,14 +25,13 @@ class Libfreenect2OpenCV {
     cv::Mat m_rgbMat;
     cv::Mat m_depthMat;
     cv::Mat m_depthMatUndistorted;
-    cv::Mat m_irMat;
+    cv::Mat m_IRMat;
     cv::Mat m_rgbdMat;
     cv::Mat m_rgbd2Mat;
 
-    std::mutex updateMutex;
-    std::mutex initMutex;
-
-    std::condition_variable initSig; // condition variable for critical section
+    std::thread * m_updateThread;
+    std::mutex m_updateMutex;
+    std::condition_variable initSig;
 
     static void trampoline(Libfreenect2OpenCV * );
 
@@ -42,56 +42,50 @@ class Libfreenect2OpenCV {
     };
 
 protected:
-    static bool s_shutdown;    // Whether the running application should shut down.
+    static bool s_shutdown;
 
 public:
-    Libfreenect2OpenCV();
+    Libfreenect2OpenCV(Processor depthProcessor = Processor::gl);
     virtual ~Libfreenect2OpenCV();
 
     void start();
     void stop();
 
-    void waitBuf() {
-        std::unique_lock<std::mutex> lock(initMutex);
-        initSig.wait(lock);
-    }
-
     const cv::Mat & getDepthMat()
     {
-        waitBuf();
+        std::unique_lock<std::mutex> lock(m_updateMutex);
         return m_depthMat;
     }
 
     const cv::Mat & getDepthMatUndistorted()
     {
-        waitBuf();
+        std::unique_lock<std::mutex> lock(m_updateMutex);
         return m_depthMatUndistorted;
     }
 
-    const cv::Mat & getIrMat()
+    const cv::Mat & getIRMat()
     {
-        waitBuf();
-        return m_irMat;
+        std::unique_lock<std::mutex> lock(m_updateMutex);
+        return m_IRMat;
     }
 
-    const cv::Mat & getRgbd()
+    const cv::Mat & getRGBd()
     {
-        waitBuf();
+        std::unique_lock<std::mutex> lock(m_updateMutex);
         return m_rgbdMat;
     }
 
-    const cv::Mat & getRgbd2()
+    const cv::Mat & getRGBd2()
     {
-        waitBuf();
+        std::unique_lock<std::mutex> lock(m_updateMutex);
         return m_rgbd2Mat;
     }
 
-    const cv::Mat & getRgbMat()
+    const cv::Mat & getRGBMat()
     {
-        waitBuf();
+        std::unique_lock<std::mutex> lock(m_updateMutex);
         return m_rgbMat;
     }
-
 };
 
-} /* namespace Communicator */
+}
