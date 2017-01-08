@@ -25,7 +25,7 @@ using namespace std;
 
 namespace libfreenect2opencv {
 
-bool Libfreenect2OpenCV::s_shutdown = false;    // Whether the running application should shut down.
+bool Libfreenect2OpenCV::s_shutdown = false;
 
 Libfreenect2OpenCV::Libfreenect2OpenCV() :
         m_pipeline(nullptr),
