@@ -28,11 +28,11 @@ Libfreenect2OpenCV::Libfreenect2OpenCV(Processor depthProcessor) :
         m_listener(nullptr),
         m_updateThread(nullptr)
 {
-    if (freenect2.enumerateDevices() == 0) {
+    if (m_freenect2.enumerateDevices() == 0) {
         throw runtime_error("no device connected");
     }
 
-    string serial = freenect2.getDefaultDeviceSerialNumber();
+    string serial = m_freenect2.getDefaultDeviceSerialNumber();
 
     std::cout << "SERIAL: " << serial << std::endl;
 
@@ -59,9 +59,9 @@ Libfreenect2OpenCV::Libfreenect2OpenCV(Processor depthProcessor) :
     }
 
     if (m_pipeline) {
-        m_dev = freenect2.openDevice(serial, m_pipeline);
+        m_dev = m_freenect2.openDevice(serial, m_pipeline);
     } else {
-        m_dev = freenect2.openDevice(serial);
+        m_dev = m_freenect2.openDevice(serial);
     }
 
     if (m_dev == 0) {
@@ -127,7 +127,7 @@ void Libfreenect2OpenCV::updateMat()
 
         if(notifyInit) {
             notifyInit = false;
-            initSig.notify_all();
+            m_initSig.notify_all();
         }
 
         lock.unlock();
@@ -146,7 +146,7 @@ void Libfreenect2OpenCV::start()
     m_updateThread = new std::thread( trampoline, this );
 
     std::unique_lock<std::mutex> lock(m_updateMutex);
-    initSig.wait(lock);
+    m_initSig.wait(lock);
 }
 
 Libfreenect2OpenCV::~Libfreenect2OpenCV()

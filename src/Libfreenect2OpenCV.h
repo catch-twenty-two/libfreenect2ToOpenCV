@@ -20,7 +20,7 @@ class Libfreenect2OpenCV {
     libfreenect2::Freenect2Device *m_dev;
     libfreenect2::Registration *m_registration;
     libfreenect2::SyncMultiFrameListener *m_listener;
-    libfreenect2::Freenect2 freenect2;
+    libfreenect2::Freenect2 m_freenect2;
 
     cv::Mat m_rgbMat;
     cv::Mat m_depthMat;
@@ -31,7 +31,7 @@ class Libfreenect2OpenCV {
 
     std::thread * m_updateThread;
     std::mutex m_updateMutex;
-    std::condition_variable initSig;
+    std::condition_variable m_initSig;
 
     static void trampoline(Libfreenect2OpenCV * );
 
