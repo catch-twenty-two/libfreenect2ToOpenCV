@@ -93,15 +93,11 @@ void Libfreenect2OpenCV::updateMat()
 {
     libfreenect2::FrameMap frames;
 
-    // check here (https://github.com/OpenKinect/libfreenect2/issues/337) and
-    // here (https://github.com/OpenKinect/libfreenect2/issues/464) why depth2rgb image should be bigger
     libfreenect2::Frame undistorted(512, 424, 4), registered(512, 424, 4), depth2rgb(1920,
-                                                                                     1080 + 2,                                                                                 4);
-    bool notifyInit = true;
-
+                                                                                     1080 + 2,
+                                                                                     4);
     while (!s_shutdown)
     {
-
         m_listener->waitForNewFrame(frames);
 
         std::unique_lock<std::mutex> lock(m_updateMutex);
@@ -112,23 +108,28 @@ void Libfreenect2OpenCV::updateMat()
 
         cv::Mat(rgb->height, rgb->width, CV_8UC4, rgb->data).copyTo(m_rgbMat);
         cv::Mat(ir->height, ir->width, CV_32FC1, ir->data).copyTo(m_IRMat);
+
+        m_IRMat /= 4096.0f;
+
         cv::Mat(depth->height, depth->width, CV_32FC1, depth->data).copyTo(m_depthMat);
+
+        m_depthMat /= 4096.0f;
 
         cv::resize(m_rgbMat, m_rgbMat, cv::Size(m_rgbMat.cols / 4, m_rgbMat.rows / 4));
 
         m_registration->apply(rgb, depth, &undistorted, &registered, true, &depth2rgb);
 
         cv::Mat(undistorted.height, undistorted.width, CV_32FC1, undistorted.data).copyTo(m_depthMatUndistorted);
+
+        m_depthMatUndistorted /= 4096.0f;
+
         cv::Mat(registered.height, registered.width, CV_8UC4, registered.data).copyTo(m_rgbdMat);
         cv::Mat(depth2rgb.height, depth2rgb.width, CV_32FC1, depth2rgb.data).copyTo(m_rgbd2Mat);
         cv::resize(m_rgbd2Mat, m_rgbd2Mat, cv::Size(m_rgbd2Mat.cols / 4, m_rgbd2Mat.rows / 4));
 
         m_listener->release(frames);
 
-        if(notifyInit) {
-            notifyInit = false;
-            m_initSig.notify_all();
-        }
+        m_initSig.notify_all();
 
         lock.unlock();
     }

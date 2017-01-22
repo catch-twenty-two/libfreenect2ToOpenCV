@@ -33,6 +33,9 @@ int main()
         // Show depth matrix
         cv::imshow("Depth Matrix", libfreenect2OpenCV.getDepthMat());
 
+        // Show depth matrix
+        cv::imshow("IR Matrix", libfreenect2OpenCV.getIRMat());
+
         key = cv::waitKey(1);
     }
 
